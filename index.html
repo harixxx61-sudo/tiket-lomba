@@ -128,6 +128,7 @@
     <div style="text-align: left; margin-top: 8px;">
         <div>ID Tiket : <span id="cetakIdTiket">-</span></div>
         <div>Peserta  : <span id="cetakNamaPeserta">-</span></div>
+        <div>No WA    : <span id="cetakWaPeserta">-</span></div>
         <div>Burung   : <span id="cetakNamaBurung">-</span></div>
         <div>Harga    : Rp <span id="cetakHarga">-</span></div>
     </div>
@@ -269,13 +270,10 @@
 
     window.prosesPesanTiket = async function() {
         const kelasId = document.getElementById('pilihanKelas').value;
-        
-        // Mengambil nilai input dan memberikan nilai default jika kosong (opsional)
         const nama = document.getElementById('namaPeserta').value.trim() || "Umum";
         const wa = document.getElementById('waPeserta').value.trim() || "-";
         const burung = document.getElementById('namaBurung').value.trim() || "-";
 
-        // Validasi kini hanya mewajibkan Kelas Lomba dan Nomor Gantangan saja
         if (!kelasId || selectedGantangan === null) {
             alert("Harap pilih kelas lomba dan pilih nomor gantangan terlebih dahulu!");
             return;
@@ -304,6 +302,7 @@
             document.getElementById('cetakNoGantangan').innerText = selectedGantangan;
             document.getElementById('cetakIdTiket').innerText = idTiketUnik;
             document.getElementById('cetakNamaPeserta').innerText = nama;
+            document.getElementById('cetakWaPeserta').innerText = wa;
             document.getElementById('cetakNamaBurung').innerText = burung;
             document.getElementById('cetakHarga').innerText = kelasData.harga_rp.toLocaleString();
 
