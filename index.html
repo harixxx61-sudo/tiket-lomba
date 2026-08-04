@@ -23,16 +23,14 @@
         .gantangan-btn { padding: 12px 5px; text-align: center; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; transition: 0.2s; }
         .tersedia { background: #10b981; color: white; }
         .tersedia:hover { background: #059669; }
-        .terisi { background: #ef4444; color: white; cursor: not-allowed; opacity: 0.7; }
+        .terisi { background: #ef4444; color: white; cursor: pointer; } /* Bisa diklik untuk batalkan */
+        .terisi:hover { background: #dc2626; }
 
         .row { display: flex; gap: 20px; }
         .col { flex: 1; }
 
         .btn-submit { width: 100%; padding: 12px; background: #2563eb; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
         .btn-submit:hover { background: #1d4ed8; }
-
-        .btn-cancel { width: 100%; padding: 10px; background: #ef4444; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 8px; transition: 0.2s; }
-        .btn-cancel:hover { background: #dc2626; }
     </style>
 </head>
 <body>
@@ -45,7 +43,7 @@
     </div>
 
     <h1>Kasir Penjualan Tiket Lomba</h1>
-    <p>Pilih kelas lomba yang dibuat dari panel admin, lalu pilih nomor gantangan.</p>
+    <p>Pilih kelas lomba, lalu pilih nomor gantangan kosong untuk memesan, atau klik nomor merah (terisi) jika ingin membatalkan tiket.</p>
 
     <div class="row" style="margin-top: 20px;">
         <div class="col">
@@ -71,7 +69,6 @@
             <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-top: 20px;">
                 <p style="margin: 0; font-size: 14px; color: #555;">Nomor Gantangan Dipilih:</p>
                 <h2 id="infoGantanganPilih" style="color: #2563eb; margin: 5px 0 0 0;">Belum dipilih</h2>
-                <button class="btn-cancel" onclick="batalkanTiketTerpilih()">Batalkan / Kosongkan Gantangan Ini</button>
             </div>
 
             <button class="btn-submit" onclick="prosesPesanTiket()">Cetak & Simpan Tiket</button>
@@ -83,8 +80,8 @@
                 <span style="color: #666; font-size: 13px; grid-column: span 4;">Silakan pilih kelas lomba terlebih dahulu di sebelah kiri.</span>
             </div>
             <div style="margin-top: 10px; font-size: 12px; display: flex; gap: 15px;">
-                <span><span style="display:inline-block;width:12px;height:12px;background:#10b981;border-radius:3px;"></span> Kosong</span>
-                <span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:3px;"></span> Terisi</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#10b981;border-radius:3px;"></span> Kosong (Klik untuk pesan)</span>
+                <span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:3px;"></span> Terisi (Klik untuk batalkan)</span>
             </div>
         </div>
     </div>
@@ -171,7 +168,8 @@
                 btn.innerText = i;
                 
                 if (isTerisi) {
-                    btn.disabled = true;
+                    // Jika diklik, langsung tawarkan opsi pembatalan tiket
+                    btn.onclick = () => konfirmasiBatalkanTiket(i);
                 } else {
                     btn.onclick = () => pilihGantangan(i);
                 }
@@ -182,7 +180,44 @@
 
     window.pilihGantangan = function(no) {
         selectedGantangan = no;
-        document.getElementById('infoGantanganPilih').innerText = `Gantangan No. ${no}`;
+        document.getElementById('infoGantanganPilih').innerText = `Gantangan No. ${no} (Dipilih untuk dibeli)`;
+    }
+
+    // Fungsi otomatis untuk membatalkan tiket langsung saat tombol merah diklik
+    window.konfirmasiBatalkanTiket = async function(noGantangan) {
+        const kelasId = document.getElementById('pilihanKelas').value;
+        const konfirmasi = confirm(`Gantangan No. ${noGantangan} sudah terisi. Apakah Anda ingin membatalkan / mengosongkan tiket ini?`);
+        if (!konfirmasi) return;
+
+        try {
+            const q = query(
+                collection(db, "tiket"), 
+                where("id_acara", "==", kelasId),
+                where("no_gantangan", "==", noGantangan)
+            );
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                alert("Data tiket tidak ditemukan.");
+                return;
+            }
+
+            let deletePromises = [];
+            querySnapshot.forEach((documentSnap) => {
+                deletePromises.push(deleteDoc(doc(db, "tiket", documentSnap.id)));
+            });
+
+            await Promise.all(deletePromises);
+            alert(`Gantangan No. ${noGantangan} berhasil dikosongkan kembali.`);
+            
+            if (selectedGantangan === noGantangan) {
+                selectedGantangan = null;
+                document.getElementById('infoGantanganPilih').innerText = "Belum dipilih";
+            }
+            muatGantangan();
+        } catch (error) {
+            alert("Gagal membatalkan tiket: " + error.message);
+        }
     }
 
     window.prosesPesanTiket = async function() {
@@ -192,16 +227,14 @@
         const burung = document.getElementById('namaBurung').value.trim();
 
         if (!kelasId || !nama || selectedGantangan === null) {
-            alert("Harap pilih kelas lomba, isi nama peserta, dan pilih nomor gantangan!");
+            alert("Harap pilih kelas lomba, isi nama peserta, dan pilih nomor gantangan kosong!");
             return;
         }
 
         const kelasData = dataKelasMap[kelasId];
-        // Membuat ID unik untuk dijadikan Document ID langsung agar scanner terbaca akurat
         const idTiketUnik = "TIK-" + Math.floor(100000 + Math.random() * 900000);
 
         try {
-            // Menggunakan setDoc dengan ID dokumen ID Unik Tiket
             await setDoc(doc(db, "tiket", idTiketUnik), {
                 id_tiket: idTiketUnik,
                 id_acara: kelasId,
@@ -226,48 +259,6 @@
             muatGantangan();
         } catch (error) {
             alert("Gagal memesan tiket: " + error.message);
-        }
-    }
-
-    window.batalkanTiketTerpilih = async function() {
-        const kelasId = document.getElementById('pilihanKelas').value;
-        if (!kelasId) {
-            alert("Pilih kelas lomba terlebih dahulu!");
-            return;
-        }
-        if (selectedGantangan === null) {
-            alert("Belum ada nomor gantangan yang dipilih!");
-            return;
-        }
-
-        const konfirmasi = confirm(`Apakah Anda yakin ingin membatalkan Gantangan No. ${selectedGantangan}?`);
-        if (!konfirmasi) return;
-
-        try {
-            const q = query(
-                collection(db, "tiket"), 
-                where("id_acara", "==", kelasId),
-                where("no_gantangan", "==", selectedGantangan)
-            );
-            const querySnapshot = await getDocs(q);
-
-            if (querySnapshot.empty) {
-                alert("Data tiket untuk gantangan ini tidak ditemukan.");
-                return;
-            }
-
-            let deletePromises = [];
-            querySnapshot.forEach((documentSnap) => {
-                deletePromises.push(deleteDoc(doc(db, "tiket", documentSnap.id)));
-            });
-
-            await Promise.all(deletePromises);
-            alert(`Gantangan No. ${selectedGantangan} berhasil dikosongkan.`);
-            selectedGantangan = null;
-            document.getElementById('infoGantanganPilih').innerText = "Belum dipilih";
-            muatGantangan();
-        } catch (error) {
-            alert("Gagal membatalkan tiket: " + error.message);
         }
     }
 </script>
