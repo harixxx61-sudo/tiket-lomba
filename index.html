@@ -107,7 +107,7 @@
         <div class="col-right">
             <label style="font-weight: bold; font-size: 13px; color: #333;">Pilih Nomor Gantangan:</label>
             <div id="gridGantanganContainer" class="grid-gantangan">
-                <span style="grid-span: span 6; color: #666; font-size: 13px;">Silakan pilih kelas lomba terlebih dahulu.</span>
+                <span style="grid-column: span 6; color: #666; font-size: 13px;">Silakan pilih kelas lomba terlebih dahulu.</span>
             </div>
 
             <div class="legend">
@@ -141,15 +141,16 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyAgfX4MG0GmGnSn3sLFs9W1tc-ooho5JgE",
-    authDomain: "bantim-enterprise.firebaseapp.com",
-    projectId: "bantim-enterprise",
-    storageBucket: "bantim-enterprise.firebasestorage.app",
-    messagingSenderId: "921322033041",
-    appId: "1:921322033041:web:06bea8592ddc41025c1430",
-    measurementId: "G-1CHZZSN7Y5"
-};
+    const firebaseConfig = {
+        apiKey: "AIzaSyAgfX4MG0GmGnSn3sLFs9W1tc-ooho5JgE",
+        authDomain: "bantim-enterprise.firebaseapp.com",
+        projectId: "bantim-enterprise",
+        storageBucket: "bantim-enterprise.firebasestorage.app",
+        messagingSenderId: "921322033041",
+        appId: "1:921322033041:web:06bea8592ddc41025c1430",
+        measurementId: "G-1CHZZSN7Y5"
+    };
+
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
@@ -232,7 +233,7 @@ const firebaseConfig = {
         initQRCode("BANTIM-ENTERPRISE-TIKET");
 
         if (!selectedAcaraId) {
-            container.innerHTML = `<span style="color: #666; font-size: 13px;">Silakan pilih kelas lomba terlebih dahulu.</span>`;
+            container.innerHTML = `<span style="grid-column: span 6; color: #666; font-size: 13px;">Silakan pilih kelas lomba terlebih dahulu.</span>`;
             selectedStokMaksimal = 0;
             return;
         }
@@ -276,10 +277,8 @@ const firebaseConfig = {
         const namaPeserta = document.getElementById('namaPeserta').value || "Umum";
         const namaBurung = document.getElementById('namaBurung').value || "-";
 
-        // Format data string yang akan dimasukkan ke dalam QR Code
         const qrStringPayload = `ACARA:${acaraInfo.nama_acara}|KELAS:${acaraInfo.kelas}|GANTANGAN:${nomor}|PESERTA:${namaPeserta}|BURUNG:${namaBurung}`;
         
-        // Update QR Code secara real-time
         const qrContainer = document.getElementById("qrcode");
         qrContainer.innerHTML = "";
         new QRCode(qrContainer, {
@@ -293,65 +292,59 @@ const firebaseConfig = {
     };
 
     // 5. Proses Jual Tiket
-window.prosesJualTiket = async function() {
-    const namaPeserta = document.getElementById('namaPeserta').value;
-    const nomorWa = document.getElementById('nomorWa').value;
-    const namaBurung = document.getElementById('namaBurung').value;
+    window.prosesJualTiket = async function() {
+        const namaPeserta = document.getElementById('namaPeserta').value;
+        const nomorWa = document.getElementById('nomorWa').value;
+        const namaBurung = document.getElementById('namaBurung').value;
 
-    if (!selectedAcaraId || !nomorTerpilih || !namaPeserta) {
-        alert("Harap pilih kelas, pilih nomor gantangan, dan isi nama peserta!");
-        return;
-    }
+        if (!selectedAcaraId || !nomorTerpilih || !namaPeserta) {
+            alert("Harap pilih kelas, pilih nomor gantangan, dan isi nama peserta!");
+            return;
+        }
 
-    const acaraInfo = dataAcaraCache[selectedAcaraId];
+        const acaraInfo = dataAcaraCache[selectedAcaraId];
 
-    try {
-        // 1. Simpan dulu ke Firestore agar mendapatkan ID Unik (docRef.id)
-        const docRef = await addDoc(collection(db, "tiket_terjual"), {
-            id_acara: selectedAcaraId,
-            nama_acara: acaraInfo.nama_acara,
-            kelas: acaraInfo.kelas,
-            harga: acaraInfo.harga_rp,
-            nomor_gantangan: nomorTerpilih,
-            nama_peserta: namaPeserta,
-            nomor_wa: nomorWa,
-            nama_burung: namaBurung,
-            status_scan: false, // Status awal belum di-scan
-            waktu_beli: new Date().toLocaleString()
-        });
+        try {
+            const docRef = await addDoc(collection(db, "tiket_terjual"), {
+                id_acara: selectedAcaraId,
+                nama_acara: acaraInfo.nama_acara,
+                kelas: acaraInfo.kelas,
+                harga: acaraInfo.harga_rp,
+                nomor_gantangan: nomorTerpilih,
+                nama_peserta: namaPeserta,
+                nomor_wa: nomorWa,
+                nama_burung: namaBurung,
+                status_scan: false,
+                waktu_beli: new Date().toLocaleString()
+            });
 
-        // 2. Gunakan ID unik dokumen Firestore tersebut sebagai isi QR Code
-        const qrIdPayload = docRef.id;
+            const qrIdPayload = docRef.id;
 
-        // 3. Update field qr_payload di database dengan ID tersebut (opsional untuk referensi)
-        // (Bisa juga langsung jadikan ID dokumen sebagai acuan utama)
+            const qrContainer = document.getElementById("qrcode");
+            qrContainer.innerHTML = "";
+            new QRCode(qrContainer, {
+                text: qrIdPayload,
+                width: 128,
+                height: 128,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
 
-        // Render ulang preview QR dengan ID unik dokumen
-        const qrContainer = document.getElementById("qrcode");
-        qrContainer.innerHTML = "";
-        new QRCode(qrContainer, {
-            text: qrIdPayload,
-            width: 128,
-            height: 128,
-            colorDark : "#000000",
-            colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.H
-        });
+            alert(`Tiket Nomor ${nomorTerpilih} berhasil dicetak & disimpan!`);
+            
+            document.getElementById('namaPeserta').value = "";
+            document.getElementById('nomorWa').value = "";
+            document.getElementById('namaBurung').value = "";
+            nomorTerpilih = null;
+            document.getElementById('labelGantanganDipilih').innerText = "Belum dipilih";
+            document.getElementById('labelGantanganDipilih').style.color = "#ef4444";
 
-        alert(`Tiket Nomor ${nomorTerpilih} berhasil dicetak & disimpan!`);
-        
-        document.getElementById('namaPeserta').value = "";
-        document.getElementById('nomorWa').value = "";
-        document.getElementById('namaBurung').value = "";
-        nomorTerpilih = null;
-        document.getElementById('labelGantanganDipilih').innerText = "Belum dipilih";
-        document.getElementById('labelGantanganDipilih').style.color = "#ef4444";
-
-        renderGantangan();
-    } catch (error) {
-        alert("Gagal menjual tiket: " + error.message);
-    }
-};
+            renderGantangan();
+        } catch (error) {
+            alert("Gagal menjual tiket: " + error.message);
+        }
+    };
 
     // 6. Fungsi Hapus Tiket Terjual
     window.hapusTiket = async function(id) {
