@@ -85,14 +85,15 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyAgFx4MG0GmGSn3sLFs9W1tc-ooho5J6gE",
-      authDomain: "bantim-enterprise.firebaseapp.com",
-      projectId: "bantim-enterprise",
-      storageBucket: "bantim-enterprise.firebasestorage.app",
-      messagingSenderId: "921322033041",
-      appId: "1:921322033041:web:06bea8592ddc41025c1430"
-    };
+const firebaseConfig = {
+    apiKey: "AIzaSyAgfX4MG0GmGnSn3sLFs9W1tc-ooho5JgE",
+    authDomain: "bantim-enterprise.firebaseapp.com",
+    projectId: "bantim-enterprise",
+    storageBucket: "bantim-enterprise.firebasestorage.app",
+    messagingSenderId: "921322033041",
+    appId: "1:921322033041:web:06bea8592ddc41025c1430",
+    measurementId: "G-1CHZZSN7Y5"
+};
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
