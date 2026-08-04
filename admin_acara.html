@@ -29,7 +29,6 @@
 <body>
 
 <div class="container">
-    <!-- Menu Navigasi -->
     <div class="navbar">
         <a href="index.html">💻 Kasir</a>
         <a href="admin_acara.html" class="active">⚙️ Admin Event</a>
@@ -39,7 +38,6 @@
     <h1>Kelola Acara & Kelas Lomba</h1>
     <p>Buat kelas baru dan tentukan jumlah stok nomor gantangan.</p>
 
-    <!-- Form Tambah Acara -->
     <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
         <h2>Tambah Kelas Baru</h2>
         <div class="form-group">
@@ -61,7 +59,6 @@
         <button class="btn-submit" onclick="tambahAcara()">Simpan Kelas Lomba</button>
     </div>
 
-    <!-- Tabel Daftar Acara & Tombol Hapus -->
     <h2>Daftar Kelas yang Aktif</h2>
     <table>
         <thead>
@@ -80,33 +77,37 @@
     </table>
 </div>
 
-<!-- Firebase SDK & Logika Utama -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyAgfX4MG0GmGnSn3sLFs9W1tc-ooho5JgE",
-    authDomain: "bantim-enterprise.firebaseapp.com",
-    projectId: "bantim-enterprise",
-    storageBucket: "bantim-enterprise.firebasestorage.app",
-    messagingSenderId: "921322033041",
-    appId: "1:921322033041:web:06bea8592ddc41025c1430",
-    measurementId: "G-1CHZZSN7Y5"
-};
+    const firebaseConfig = {
+        apiKey: "AIzaSyAgfX4MG0GmGnSn3sLFs9W1tc-ooho5JgE",
+        authDomain: "bantim-enterprise.firebaseapp.com",
+        projectId: "bantim-enterprise",
+        storageBucket: "bantim-enterprise.firebasestorage.app",
+        messagingSenderId: "921322033041",
+        appId: "1:921322033041:web:06bea8592ddc41025c1430",
+        measurementId: "G-1CHZZSN7Y5"
+    };
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // 1. Fungsi Tambah Acara ke Firestore
+    // 1. Fungsi Tambah Acara dengan Validasi Ketat
     window.tambahAcara = async function() {
-        const namaAcara = document.getElementById('namaAcara').value;
-        const namaKelas = document.getElementById('namaKelas').value;
+        const namaAcara = document.getElementById('namaAcara').value.trim();
+        const namaKelas = document.getElementById('namaKelas').value.trim();
         const harga = parseFloat(document.getElementById('hargaTiket').value);
         const stok = parseInt(document.getElementById('stokGantangan').value);
 
         if (!namaAcara || !namaKelas || isNaN(harga) || isNaN(stok)) {
             alert("Harap isi semua kolom dengan benar!");
+            return;
+        }
+
+        if (harga <= 0 || stok <= 0) {
+            alert("Harga tiket dan stok gantangan harus bernilai lebih dari 0!");
             return;
         }
 
@@ -128,7 +129,7 @@ const firebaseConfig = {
         }
     };
 
-    // 2. Realtime Listener Menampilkan Daftar Acara & Tombol Hapus
+    // 2. Realtime Listener Daftar Acara
     onSnapshot(collection(db, "acara_lomba"), (snapshot) => {
         const tabel = document.getElementById('tabelAcara');
         tabel.innerHTML = "";
@@ -158,14 +159,27 @@ const firebaseConfig = {
         });
     });
 
-    // 3. Fungsi Hapus Acara Berdasarkan ID Firestore
+    // 3. Fungsi Hapus Acara + Pembersihan Tiket Terkait (Cascade Delete)
     window.hapusAcara = async function(id) {
-        const konfirmasi = confirm("Apakah Anda yakin ingin menghapus kelas/acara ini?");
+        const konfirmasi = confirm("PERHATIAN: Menghapus kelas ini juga akan menghapus seluruh data tiket peserta yang sudah tercatat di kelas ini. Apakah Anda yakin?");
         if (!konfirmasi) return;
 
         try {
+            // Hapus dokumen kelas lomba utama
             await deleteDoc(doc(db, "acara_lomba", id));
-            alert("Acara berhasil dihapus!");
+
+            // Hapus juga tiket-tiket yang terikat dengan id_acara tersebut
+            const q = query(collection(db, "tiket"), where("id_acara", "==", id));
+            const querySnapshot = await getDocs(q);
+
+            let deletePromises = [];
+            querySnapshot.forEach((ticketDoc) => {
+                deletePromises.push(deleteDoc(doc(db, "tiket", ticketDoc.id)));
+            });
+
+            await Promise.all(deletePromises);
+
+            alert("Acara beserta data tiket terkait berhasil dihapus!");
         } catch (error) {
             alert("Gagal menghapus acara: " + error.message);
         }
