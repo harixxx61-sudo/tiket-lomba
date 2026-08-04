@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kasir Tiket Lomba Burung</title>
+    <title>Admin - Acara & Kelas Lomba</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; margin: 20px; }
         .navbar { background: #1e3a8a; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
@@ -16,7 +16,7 @@
 
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
-        .form-group select, .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
 
         .btn-submit { width: 100%; padding: 12px; background: #10b981; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
         .btn-submit:hover { background: #059669; }
@@ -31,56 +31,59 @@
 <div class="container">
     <!-- Menu Navigasi -->
     <div class="navbar">
-        <a href="index.html" class="active">💻 Kasir</a>
-        <a href="admin_acara.html">⚙️ Admin Event</a>
+        <a href="index.html">💻 Kasir</a>
+        <a href="admin_acara.html" class="active">⚙️ Admin Event</a>
         <a href="scanner.html" target="_blank">📷 Scanner QR</a>
     </div>
 
-    <h1>Kasir Penjualan Tiket Lomba</h1>
-    <p>Pilih kelas lomba dan masukkan nomor gantangan untuk mencetak/merekam tiket.</p>
+    <h1>Kelola Acara & Kelas Lomba</h1>
+    <p>Buat kelas baru dan tentukan jumlah stok nomor gantangan.</p>
 
-    <!-- Form Transaksi Kasir -->
+    <!-- Form Tambah Acara -->
     <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
+        <h2>Tambah Kelas Baru</h2>
         <div class="form-group">
-            <label>Pilih Kelas Lomba</label>
-            <select id="pilihAcara" onchange="updateInfoHarga()">
-                <option value="">-- Pilih Kelas --</option>
-            </select>
+            <label>Nama Acara / Gantangan</label>
+            <input type="text" id="namaAcara" placeholder="Contoh: Latihan Prestasi BANTIM">
         </div>
         <div class="form-group">
-            <label>Nomor Gantangan</label>
-            <input type="number" id="nomorGantangan" placeholder="Contoh: 1, 2, 15, dst">
+            <label>Nama Kelas</label>
+            <input type="text" id="namaKelas" placeholder="Contoh: Murai Batu VIP">
         </div>
         <div class="form-group">
-            <label>Nama Pemilik / Peserta</label>
-            <input type="text" id="namaPeserta" placeholder="Nama Pemilik Burung">
+            <label>Harga Tiket (Rp)</label>
+            <input type="number" id="hargaTiket" placeholder="Contoh: 50000">
         </div>
-        <button class="btn-submit" onclick="prosesJualTiket()">Jual & Simpan Tiket</button>
+        <div class="form-group">
+            <label>Jumlah Stok Gantangan (Total Nomor)</label>
+            <input type="number" id="stokGantangan" placeholder="Contoh: 30 atau 60">
+        </div>
+        <button class="btn-submit" onclick="tambahAcara()">Simpan Kelas Lomba</button>
     </div>
 
-    <!-- Riwayat Penjualan Tiket & Opsi Hapus -->
-    <h2>Riwayat Tiket Terjual</h2>
+    <!-- Tabel Daftar Acara & Tombol Hapus -->
+    <h2>Daftar Kelas yang Aktif</h2>
     <table>
         <thead>
             <tr>
                 <th>No</th>
-                <th>Waktu</th>
+                <th>Nama Acara</th>
                 <th>Kelas</th>
-                <th>No GNT</th>
-                <th>Peserta</th>
+                <th>Harga</th>
+                <th>Stok</th>
                 <th>Aksi</th>
             </tr>
         </thead>
-        <tbody id="tabelTiketTerjual">
+        <tbody id="tabelAcara">
             <tr><td colspan="6" style="text-align:center;">Memuat data...</td></tr>
         </tbody>
     </table>
 </div>
 
-<!-- Firebase SDK & Logika Kasir -->
+<!-- Firebase SDK & Logika Utama -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAgfX4MG0GmGnSn3sLFs9W1tc-ooho5JgE",
@@ -94,62 +97,44 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let dataAcaraCache = {};
+    // 1. Fungsi Tambah Acara ke Firestore
+    window.tambahAcara = async function() {
+        const namaAcara = document.getElementById('namaAcara').value;
+        const namaKelas = document.getElementById('namaKelas').value;
+        const harga = parseFloat(document.getElementById('hargaTiket').value);
+        const stok = parseInt(document.getElementById('stokGantangan').value);
 
-    // 1. Muat Opsi Kelas Lomba ke Dropdown Kasir
-    async function muatDropdownAcara() {
-        const select = document.getElementById('pilihAcara');
-        const querySnapshot = await getDocs(collection(db, "acara_lomba"));
-        
-        select.innerHTML = `<option value="">-- Pilih Kelas --</option>`;
-        querySnapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            dataAcaraCache[docSnap.id] = data;
-            select.innerHTML += `<option value="${docSnap.id}">${data.nama_acara} - ${data.kelas} (Rp ${data.harga_rp.toLocaleString()})</option>`;
-        });
-    }
-    muatDropdownAcara();
-
-    // 2. Proses Jual Tiket
-    window.prosesJualTiket = async function() {
-        const idAcara = document.getElementById('pilihAcara').value;
-        const noGantangan = document.getElementById('nomorGantangan').value;
-        const namaPeserta = document.getElementById('namaPeserta').value;
-
-        if (!idAcara || !noGantangan || !namaPeserta) {
-            alert("Harap lengkapi semua kolom!");
+        if (!namaAcara || !namaKelas || isNaN(harga) || isNaN(stok)) {
+            alert("Harap isi semua kolom dengan benar!");
             return;
         }
 
-        const acaraInfo = dataAcaraCache[idAcara];
-
         try {
-            await addDoc(collection(db, "tiket_terjual"), {
-                id_acara: idAcara,
-                nama_acara: acaraInfo.nama_acara,
-                kelas: acaraInfo.kelas,
-                harga: acaraInfo.harga_rp,
-                nomor_gantangan: noGantangan,
-                nama_peserta: namaPeserta,
-                waktu_beli: new Date().toLocaleString()
+            await addDoc(collection(db, "acara_lomba"), {
+                nama_acara: namaAcara,
+                kelas: namaKelas,
+                harga_rp: harga,
+                stok_gantangan: stok,
+                dibuat_pada: new Date().toISOString()
             });
 
-            alert("Tiket berhasil dicetak & disimpan!");
-            document.getElementById('nomorGantangan').value = "";
-            document.getElementById('namaPeserta').value = "";
+            alert("Kelas lomba berhasil ditambahkan!");
+            document.getElementById('namaKelas').value = "";
+            document.getElementById('hargaTiket').value = "";
+            document.getElementById('stokGantangan').value = "";
         } catch (error) {
-            alert("Gagal menjual tiket: " + error.message);
+            alert("Gagal menyimpan: " + error.message);
         }
     };
 
-    // 3. Realtime Listener Tabel Riwayat Tiket Beserta Tombol Hapus
-    onSnapshot(collection(db, "tiket_terjual"), (snapshot) => {
-        const tabel = document.getElementById('tabelTiketTerjual');
+    // 2. Realtime Listener Menampilkan Daftar Acara & Tombol Hapus
+    onSnapshot(collection(db, "acara_lomba"), (snapshot) => {
+        const tabel = document.getElementById('tabelAcara');
         tabel.innerHTML = "";
         let no = 1;
 
         if (snapshot.empty) {
-            tabel.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 15px;">Belum ada tiket terjual.</td></tr>`;
+            tabel.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 15px;">Belum ada data acara.</td></tr>`;
             return;
         }
 
@@ -160,28 +145,28 @@
             tabel.innerHTML += `
                 <tr>
                     <td>${no++}</td>
-                    <td>${data.waktu_beli}</td>
-                    <td>${data.nama_acara} (${data.kelas})</td>
-                    <td><b>No. ${data.nomor_gantangan}</b></td>
-                    <td>${data.nama_peserta}</td>
+                    <td>${data.nama_acara}</td>
+                    <td>${data.kelas}</td>
+                    <td>Rp ${data.harga_rp.toLocaleString()}</td>
+                    <td>${data.stok_gantangan} Gantangan</td>
                     <td>
-                        <button onclick="hapusTiket('${idDoc}')" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Hapus</button>
+                        <button onclick="hapusAcara('${idDoc}')" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Hapus</button>
                     </td>
                 </tr>
             `;
         });
     });
 
-    // 4. Fungsi Hapus Tiket Terjual dari Firestore
-    window.hapusTiket = async function(id) {
-        const konfirmasi = confirm("Apakah Anda yakin ingin menghapus/membatalkan tiket ini?");
+    // 3. Fungsi Hapus Acara Berdasarkan ID Firestore
+    window.hapusAcara = async function(id) {
+        const konfirmasi = confirm("Apakah Anda yakin ingin menghapus kelas/acara ini?");
         if (!konfirmasi) return;
 
         try {
-            await deleteDoc(doc(db, "tiket_terjual", id));
-            alert("Tiket berhasil dihapus!");
+            await deleteDoc(doc(db, "acara_lomba", id));
+            alert("Acara berhasil dihapus!");
         } catch (error) {
-            alert("Gagal menghapus tiket: " + error.message);
+            alert("Gagal menghapus acara: " + error.message);
         }
     };
 </script>
