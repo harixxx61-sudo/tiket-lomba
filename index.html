@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kasir Tiket Lomba Burung</title>
+    <!-- Library QRCode JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; margin: 20px; }
         .navbar { background: #1e3a8a; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
@@ -39,6 +41,10 @@
         .selected-box { background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #cbd5e1; }
         .selected-box span { font-weight: bold; color: #1e3a8a; }
 
+        /* Preview QR Section */
+        .qr-preview-container { text-align: center; background: #fff; padding: 15px; border-radius: 8px; border: 1px dashed #cbd5e1; margin-bottom: 15px; }
+        #qrcode { display: inline-block; margin-top: 8px; }
+
         .btn-submit { width: 100%; padding: 12px; background: #2563eb; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; }
         .btn-submit:hover { background: #1d4ed8; }
 
@@ -62,7 +68,7 @@
 
     <!-- Layout Form & Kotak Gantangan -->
     <div class="row-form">
-        <!-- Kolom Kiri: Input Data -->
+        <!-- Kolom Kiri: Input Data & Preview QR -->
         <div class="col-left">
             <div class="form-group">
                 <label>Pilih Kelas Lomba (Dari Admin)</label>
@@ -86,6 +92,12 @@
             <div class="selected-box">
                 Nomor Gantangan Dipilih:<br>
                 <span id="labelGantanganDipilih" style="font-size: 16px; color: #ef4444;">Belum dipilih</span>
+            </div>
+
+            <!-- Kotak Preview QR Code -->
+            <div class="qr-preview-container">
+                <label style="font-size: 12px; color: #666; font-weight: bold; display: block;">PREVIEW QR CODE TIKET</label>
+                <div id="qrcode"></div>
             </div>
 
             <button class="btn-submit" onclick="prosesJualTiket()">Cetak & Simpan Tiket</button>
@@ -146,6 +158,22 @@
     let nomorTerpilih = null;
     let selectedAcaraId = null;
     let selectedStokMaksimal = 0;
+    let qrInstance = null;
+
+    // Inisialisasi QR Code kosong di awal
+    function initQRCode(textData = "BELUM_ADA_DATA") {
+        const qrContainer = document.getElementById("qrcode");
+        qrContainer.innerHTML = "";
+        qrInstance = new QRCode(qrContainer, {
+            text: textData,
+            width: 128,
+            height: 128,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+    }
+    initQRCode("BANTIM-ENTERPRISE-TIKET");
 
     // 1. Muat Dropdown Acara
     async function muatDropdownAcara() {
@@ -161,7 +189,7 @@
     }
     muatDropdownAcara();
 
-    // 2. Pantau Data Tiket Terjual Realtime untuk Update Warna Tombol Gantangan
+    // 2. Pantau Data Tiket Terjual Realtime
     onSnapshot(collection(db, "tiket_terjual"), (snapshot) => {
         tiketTerjualList = [];
         const tabel = document.getElementById('tabelTiketTerjual');
@@ -190,11 +218,10 @@
             `;
         });
 
-        // Render ulang kotak gantangan jika ada perubahan database
         renderGantangan();
     });
 
-    // 3. Render Kotak Nomor Gantangan Sesuai Stok Kelas yang Dipilih
+    // 3. Render Kotak Nomor Gantangan
     window.renderGantangan = function() {
         const select = document.getElementById('pilihAcara');
         selectedAcaraId = select.value;
@@ -202,6 +229,7 @@
         
         nomorTerpilih = null;
         document.getElementById('labelGantanganDipilih').innerText = "Belum dipilih";
+        initQRCode("BANTIM-ENTERPRISE-TIKET");
 
         if (!selectedAcaraId) {
             container.innerHTML = `<span style="color: #666; font-size: 13px;">Silakan pilih kelas lomba terlebih dahulu.</span>`;
@@ -212,7 +240,6 @@
         const acara = dataAcaraCache[selectedAcaraId];
         selectedStokMaksimal = acara.stok_gantangan || 0;
 
-        // Ambil daftar nomor yang sudah dibeli untuk kelas ini
         const nomorTerisiSet = new Set();
         tiketTerjualList.forEach(t => {
             if (t.id_acara === selectedAcaraId) {
@@ -236,15 +263,33 @@
         }
     };
 
-    // 4. Pilih Nomor Gantangan
+    // 4. Pilih Nomor Gantangan & Update Preview QR Code
     window.pilihNomorGantangan = function(nomor, element) {
-        // Hapus kelas 'pilih' dari semua tombol lain
         document.querySelectorAll('.btn-gantangan.kosong').forEach(b => b.classList.remove('pilih'));
         
         element.classList.add('pilih');
         nomorTerpilih = nomor;
         document.getElementById('labelGantanganDipilih').innerText = `Nomor ${nomor}`;
         document.getElementById('labelGantanganDipilih').style.color = "#2563eb";
+
+        const acaraInfo = dataAcaraCache[selectedAcaraId];
+        const namaPeserta = document.getElementById('namaPeserta').value || "Umum";
+        const namaBurung = document.getElementById('namaBurung').value || "-";
+
+        // Format data string yang akan dimasukkan ke dalam QR Code
+        const qrStringPayload = `ACARA:${acaraInfo.nama_acara}|KELAS:${acaraInfo.kelas}|GANTANGAN:${nomor}|PESERTA:${namaPeserta}|BURUNG:${namaBurung}`;
+        
+        // Update QR Code secara real-time
+        const qrContainer = document.getElementById("qrcode");
+        qrContainer.innerHTML = "";
+        new QRCode(qrContainer, {
+            text: qrStringPayload,
+            width: 128,
+            height: 128,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
     };
 
     // 5. Proses Jual Tiket
@@ -259,6 +304,7 @@
         }
 
         const acaraInfo = dataAcaraCache[selectedAcaraId];
+        const qrStringPayload = `ACARA:${acaraInfo.nama_acara}|KELAS:${acaraInfo.kelas}|GANTANGAN:${nomorTerpilih}|PESERTA:${namaPeserta}|BURUNG:${namaBurung}`;
 
         try {
             await addDoc(collection(db, "tiket_terjual"), {
@@ -270,18 +316,19 @@
                 nama_peserta: namaPeserta,
                 nomor_wa: nomorWa,
                 nama_burung: namaBurung,
+                qr_payload: qrStringPayload,
                 waktu_beli: new Date().toLocaleString()
             });
 
             alert(`Tiket Nomor ${nomorTerpilih} berhasil dicetak & disimpan!`);
             
-            // Reset form input ringan
             document.getElementById('namaPeserta').value = "";
             document.getElementById('nomorWa').value = "";
             document.getElementById('namaBurung').value = "";
             nomorTerpilih = null;
             document.getElementById('labelGantanganDipilih').innerText = "Belum dipilih";
             document.getElementById('labelGantanganDipilih').style.color = "#ef4444";
+            initQRCode("BANTIM-ENTERPRISE-TIKET");
 
             renderGantangan();
         } catch (error) {
