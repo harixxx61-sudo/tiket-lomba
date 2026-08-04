@@ -84,15 +84,15 @@
                 </select>
             </div>
             <div class="form-group">
-                <label>Nama Peserta / Pemilik</label>
-                <input type="text" id="namaPeserta" placeholder="Masukkan nama peserta">
+                <label>Nama Peserta / Pemilik (Opsional)</label>
+                <input type="text" id="namaPeserta" placeholder="Kosongkan juga boleh">
             </div>
             <div class="form-group">
-                <label>Nomor WhatsApp</label>
+                <label>Nomor WhatsApp (Opsional)</label>
                 <input type="text" id="waPeserta" placeholder="08xxxxxxxxxx">
             </div>
             <div class="form-group">
-                <label>Nama Burung / Amunisi</label>
+                <label>Nama Burung / Amunisi (Opsional)</label>
                 <input type="text" id="namaBurung" placeholder="Contoh: Petir Jr">
             </div>
             
@@ -269,12 +269,15 @@
 
     window.prosesPesanTiket = async function() {
         const kelasId = document.getElementById('pilihanKelas').value;
-        const nama = document.getElementById('namaPeserta').value.trim();
-        const wa = document.getElementById('waPeserta').value.trim();
-        const burung = document.getElementById('namaBurung').value.trim();
+        
+        // Mengambil nilai input dan memberikan nilai default jika kosong (opsional)
+        const nama = document.getElementById('namaPeserta').value.trim() || "Umum";
+        const wa = document.getElementById('waPeserta').value.trim() || "-";
+        const burung = document.getElementById('namaBurung').value.trim() || "-";
 
-        if (!kelasId || !nama || selectedGantangan === null) {
-            alert("Harap pilih kelas lomba, isi nama peserta, dan pilih nomor gantangan kosong!");
+        // Validasi kini hanya mewajibkan Kelas Lomba dan Nomor Gantangan saja
+        if (!kelasId || selectedGantangan === null) {
+            alert("Harap pilih kelas lomba dan pilih nomor gantangan terlebih dahulu!");
             return;
         }
 
@@ -301,11 +304,11 @@
             document.getElementById('cetakNoGantangan').innerText = selectedGantangan;
             document.getElementById('cetakIdTiket').innerText = idTiketUnik;
             document.getElementById('cetakNamaPeserta').innerText = nama;
-            document.getElementById('cetakNamaBurung').innerText = burung || '-';
+            document.getElementById('cetakNamaBurung').innerText = burung;
             document.getElementById('cetakHarga').innerText = kelasData.harga_rp.toLocaleString();
 
             const qrContainer = document.getElementById('qrcodeContainer');
-            qrContainer.replaceChildren(); // Membersihkan QR code lama agar tidak duplikat
+            qrContainer.replaceChildren(); 
             
             new QRCode(qrContainer, {
                 text: idTiketUnik,
