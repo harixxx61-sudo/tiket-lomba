@@ -293,48 +293,65 @@
     };
 
     // 5. Proses Jual Tiket
-    window.prosesJualTiket = async function() {
-        const namaPeserta = document.getElementById('namaPeserta').value;
-        const nomorWa = document.getElementById('nomorWa').value;
-        const namaBurung = document.getElementById('namaBurung').value;
+window.prosesJualTiket = async function() {
+    const namaPeserta = document.getElementById('namaPeserta').value;
+    const nomorWa = document.getElementById('nomorWa').value;
+    const namaBurung = document.getElementById('namaBurung').value;
 
-        if (!selectedAcaraId || !nomorTerpilih || !namaPeserta) {
-            alert("Harap pilih kelas, pilih nomor gantangan, dan isi nama peserta!");
-            return;
-        }
+    if (!selectedAcaraId || !nomorTerpilih || !namaPeserta) {
+        alert("Harap pilih kelas, pilih nomor gantangan, dan isi nama peserta!");
+        return;
+    }
 
-        const acaraInfo = dataAcaraCache[selectedAcaraId];
-        const qrStringPayload = `ACARA:${acaraInfo.nama_acara}|KELAS:${acaraInfo.kelas}|GANTANGAN:${nomorTerpilih}|PESERTA:${namaPeserta}|BURUNG:${namaBurung}`;
+    const acaraInfo = dataAcaraCache[selectedAcaraId];
 
-        try {
-            await addDoc(collection(db, "tiket_terjual"), {
-                id_acara: selectedAcaraId,
-                nama_acara: acaraInfo.nama_acara,
-                kelas: acaraInfo.kelas,
-                harga: acaraInfo.harga_rp,
-                nomor_gantangan: nomorTerpilih,
-                nama_peserta: namaPeserta,
-                nomor_wa: nomorWa,
-                nama_burung: namaBurung,
-                qr_payload: qrStringPayload,
-                waktu_beli: new Date().toLocaleString()
-            });
+    try {
+        // 1. Simpan dulu ke Firestore agar mendapatkan ID Unik (docRef.id)
+        const docRef = await addDoc(collection(db, "tiket_terjual"), {
+            id_acara: selectedAcaraId,
+            nama_acara: acaraInfo.nama_acara,
+            kelas: acaraInfo.kelas,
+            harga: acaraInfo.harga_rp,
+            nomor_gantangan: nomorTerpilih,
+            nama_peserta: namaPeserta,
+            nomor_wa: nomorWa,
+            nama_burung: namaBurung,
+            status_scan: false, // Status awal belum di-scan
+            waktu_beli: new Date().toLocaleString()
+        });
 
-            alert(`Tiket Nomor ${nomorTerpilih} berhasil dicetak & disimpan!`);
-            
-            document.getElementById('namaPeserta').value = "";
-            document.getElementById('nomorWa').value = "";
-            document.getElementById('namaBurung').value = "";
-            nomorTerpilih = null;
-            document.getElementById('labelGantanganDipilih').innerText = "Belum dipilih";
-            document.getElementById('labelGantanganDipilih').style.color = "#ef4444";
-            initQRCode("BANTIM-ENTERPRISE-TIKET");
+        // 2. Gunakan ID unik dokumen Firestore tersebut sebagai isi QR Code
+        const qrIdPayload = docRef.id;
 
-            renderGantangan();
-        } catch (error) {
-            alert("Gagal menjual tiket: " + error.message);
-        }
-    };
+        // 3. Update field qr_payload di database dengan ID tersebut (opsional untuk referensi)
+        // (Bisa juga langsung jadikan ID dokumen sebagai acuan utama)
+
+        // Render ulang preview QR dengan ID unik dokumen
+        const qrContainer = document.getElementById("qrcode");
+        qrContainer.innerHTML = "";
+        new QRCode(qrContainer, {
+            text: qrIdPayload,
+            width: 128,
+            height: 128,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.H
+        });
+
+        alert(`Tiket Nomor ${nomorTerpilih} berhasil dicetak & disimpan!`);
+        
+        document.getElementById('namaPeserta').value = "";
+        document.getElementById('nomorWa').value = "";
+        document.getElementById('namaBurung').value = "";
+        nomorTerpilih = null;
+        document.getElementById('labelGantanganDipilih').innerText = "Belum dipilih";
+        document.getElementById('labelGantanganDipilih').style.color = "#ef4444";
+
+        renderGantangan();
+    } catch (error) {
+        alert("Gagal menjual tiket: " + error.message);
+    }
+};
 
     // 6. Fungsi Hapus Tiket Terjual
     window.hapusTiket = async function(id) {
