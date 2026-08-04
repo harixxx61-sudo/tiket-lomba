@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Pengadaan Acara & Pembatalan Tiket</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; margin: 20px; }
+        .navbar { background: #1e3a8a; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
+        .navbar a { color: white; text-decoration: none; font-weight: bold; margin: 0 15px; padding: 8px 15px; background: rgba(255,255,255,0.1); border-radius: 5px; transition: 0.3s; }
+        .navbar a:hover { background: white; color: #1e3a8a; }
+        .navbar a.active { background: #10b981; color: white; }
+
+        .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1, h2 { color: #1e3a8a; margin-bottom: 5px; }
+        
+        .row { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+        .col { flex: 1; min-width: 300px; }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+        
+        .btn-submit { width: 100%; padding: 12px; background: #10b981; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        .btn-submit:hover { background: #059669; }
+
+        .btn-danger { background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; }
+        .btn-danger:hover { background: #dc2626; }
+
+        /* Tabel Data */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+        table th, table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        table th { background-color: #1e3a8a; color: white; }
+        table tr:nth-child(even) { background-color: #f9fafb; }
+        
+        .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; background: #2563eb; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Menu Navigasi -->
+    <div class="navbar">
+        <a href="index.html">💻 Kasir</a>
+        <a href="admin_acara.html" class="active">⚙️ Admin Event</a>
+        <a href="scanner.html" target="_blank">📷 Scanner QR</a>
+    </div>
+
+    <h1>Manajemen Acara & Pembatalan Tiket</h1>
+    <p>Kelola kelas lomba serta batalkan/hapus tiket peserta yang salah daftar.</p>
+
+    <div class="row">
+        <!-- Form Buat Acara Baru -->
+        <div class="col" style="flex: 0.9;">
+            <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                <h2>Buat Kelas Lomba</h2>
+                <div class="form-group">
+                    <label>Nama Acara / Event</label>
+                    <input type="text" id="namaAcara" placeholder="Contoh: Latpres Kemerdekaan">
+                </div>
+                <div class="form-group">
+                    <label>Tanggal</label>
+                    <input type="date" id="tanggalAcara">
+                </div>
+                <div class="form-group">
+                    <label>Lokasi</label>
+                    <input type="text" id="lokasiAcara" value="Bandung, Jawa Barat">
+                </div>
+                <div class="form-group">
+                    <label>Kategori / Kelas Burung</label>
+                    <input type="text" id="kelasBurung" placeholder="Contoh: Murai Batu VIP">
+                </div>
+                <div class="row" style="margin-top: 0;">
+                    <div class="col">
+                        <div class="form-group">
+                            <label>Jumlah / Stok Gantangan</label>
+                            <!-- Diubah menjadi input angka manual -->
+                            <input type="number" id="stokTiket" placeholder="Contoh: 50" min="1">
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label>Harga (Rp)</label>
+                            <input type="number" id="hargaTiket" placeholder="50000">
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-submit" id="btnSimpan" onclick="simpanAcara()">Simpan Kelas</button>
+            </div>
+        </div>
+
+        <!-- Tabel Daftar Acara -->
+        <div class="col" style="flex: 1.1;">
+            <h2>Daftar Kelas Lomba</h2>
+            <table id="tabelAcara">
+                <thead>
+                    <tr>
+                        <th>Event & Tanggal</th>
+                        <th>Kelas</th>
+                        <th>Stok</th>
+                        <th>Harga</th>
+                    </tr>
+                </thead>
+                <tbody id="dataAcara">
+                    <tr><td colspan="4" style="text-align: center;">Memuat...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <hr style="margin: 30px 0; border: 0; border-top: 1px solid #ddd;">
+
+    <!-- TABEL KONTROL PEMBATALAN TIKET PESERTA -->
+    <div>
+        <h2>Kontrol Peserta & Pembatalan Tiket</h2>
+        <p style="font-size: 13px; color: #666;">Jika peserta batal atau salah input, klik <b>Batalkan Tiket</b> agar nomor gantangan tersebut otomatis kosong kembali di kasir.</p>
+        
+        <table id="tabelTiketPeserta">
+            <thead>
+                <tr>
+                    <th>ID Tiket</th>
+                    <th>Nama Peserta</th>
+                    <th>Kelas</th>
+                    <th>No. Gantangan</th>
+                    <th>Status Scan</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="dataTiketPeserta">
+                <tr><td colspan="6" style="text-align: center;">Memuat data peserta...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAgfX4MG0GmGnSn3sLFs9W1tc-ooho5JgE",
+      authDomain: "bantim-enterprise.firebaseapp.com",
+      projectId: "bantim-enterprise",
+      storageBucket: "bantim-enterprise.firebasestorage.app",
+      messagingSenderId: "921322033041",
+      appId: "1:921322033041:web:06bea0592ddc41025c1430"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 1. Simpan Acara
+    window.simpanAcara = async function() {
+        const namaAcara = document.getElementById('namaAcara').value;
+        const tanggalAcara = document.getElementById('tanggalAcara').value;
+        const lokasiAcara = document.getElementById('lokasiAcara').value;
+        const kelasBurung = document.getElementById('kelasBurung').value;
+        const stokTiket = document.getElementById('stokTiket').value;
+        const hargaTiket = document.getElementById('hargaTiket').value;
+
+        if (!namaAcara || !tanggalAcara || !kelasBurung || !stokTiket || !hargaTiket) {
+            alert('Harap isi semua formulir dengan lengkap termasuk jumlah stok gantangan!');
+            return;
+        }
+
+        try {
+            await addDoc(collection(db, "acara_lomba"), {
+                nama_acara: namaAcara,
+                tanggal: tanggalAcara,
+                lokasi: lokasiAcara,
+                kelas: kelasBurung,
+                stok_gantangan: parseInt(stokTiket),
+                harga_rp: parseInt(hargaTiket),
+                dibuat_pada: new Date().toISOString()
+            });
+            alert('Kelas lomba berhasil ditambahkan!');
+            document.getElementById('kelasBurung').value = "";
+            document.getElementById('stokTiket').value = "";
+            document.getElementById('hargaTiket').value = "";
+        } catch (error) {
+            alert("Gagal: " + error.message);
+        }
+    }
+
+    // 2. Realtime Tabel Acara
+    onSnapshot(query(collection(db, "acara_lomba"), orderBy("dibuat_pada", "desc")), (snapshot) => {
+        const tbody = document.getElementById('dataAcara');
+        tbody.innerHTML = snapshot.empty ? '<tr><td colspan="4" style="text-align: center;">Belum ada acara.</td></tr>' : "";
+        
+        snapshot.forEach((d) => {
+            const data = d.data();
+            tbody.innerHTML += `
+                <tr>
+                    <td><b>${data.nama_acara}</b><br><small>${data.tanggal}</small></td>
+                    <td>${data.kelas}</td>
+                    <td><span class="badge">${data.stok_gantangan}G</span></td>
+                    <td>Rp${data.harga_rp.toLocaleString()}</td>
+                </tr>`;
+        });
+    });
+
+    // 3. Realtime Tabel Daftar Peserta & Tombol Batalkan (Hapus)
+    onSnapshot(query(collection(db, "tiket")), (snapshot) => {
+        const tbody = document.getElementById('dataTiketPeserta');
+        tbody.innerHTML = snapshot.empty ? '<tr><td colspan="6" style="text-align: center;">Belum ada peserta terdaftar.</td></tr>' : "";
+
+        snapshot.forEach((documentSnap) => {
+            const data = documentSnap.data();
+            const docId = documentSnap.id; // ID unik dokumen di Firebase Firestore
+            const statusScanText = data.status_scan ? '<span style="color:green; font-weight:bold;">Sudah Discan</span>' : '<span style="color:orange;">Belum Discan</span>';
+
+            tbody.innerHTML += `
+                <tr>
+                    <td><b>${data.id_tiket}</b></td>
+                    <td>${data.nama} <br><small>${data.wa || '-'}</small></td>
+                    <td>${data.kelas}</td>
+                    <td><b>Gantangan ${data.no_gantangan}</b></td>
+                    <td>${statusScanText}</td>
+                    <td><button class="btn-danger" onclick="batalkanTiket('${docId}')">Batalkan Tiket</button></td>
+                </tr>`;
+        });
+    });
+
+    // 4. Fungsi Eksekusi Pembatalan Tiket
+    window.batalkanTiket = async function(docId) {
+        if (confirm("Yakin ingin membatalkan dan menghapus tiket ini? Nomor gantangan akan otomatis kosong kembali.")) {
+            try {
+                await deleteDoc(doc(db, "tiket", docId));
+                alert("Tiket berhasil dibatalkan!");
+            } catch (error) {
+                alert("Gagal membatalkan tiket: " + error.message);
+            }
+        }
+    }
+</script>
+</body>
+</html>

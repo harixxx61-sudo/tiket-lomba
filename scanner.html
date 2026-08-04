@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Scanner Panitia - Smart Gantangan</title>
+    <!-- Library QR Code Scanner -->
+    <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #1e293b; color: white; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; }
+        .header { background: #0f172a; width: 100%; padding: 15px; text-align: center; box-sizing: border-box; border-bottom: 2px solid #2563eb; }
+        .header h2 { margin: 0; font-size: 20px; color: #38bdf8; }
+        
+        /* Area Kamera */
+        #reader { width: 100%; max-width: 500px; margin-top: 20px; background: white; color: black; border-radius: 8px; overflow: hidden; }
+        
+        /* Area Hasil Scan */
+        #result-box { width: 90%; max-width: 450px; margin-top: 20px; padding: 20px; border-radius: 12px; text-align: center; display: none; }
+        .status-title { font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .data-text { font-size: 16px; line-height: 1.5; }
+        .gantangan-big { font-size: 40px; font-weight: bold; margin: 10px 0; }
+
+        /* Warna Status */
+        .bg-valid { background: #10b981; color: white; }      /* Hijau - Berhasil */
+        .bg-used { background: #f59e0b; color: white; }       /* Kuning - Sudah dipakai */
+        .bg-invalid { background: #ef4444; color: white; }    /* Merah - Tidak ditemukan */
+
+        .btn-scan { margin-top: 15px; padding: 12px 25px; font-size: 16px; font-weight: bold; border: none; border-radius: 8px; background: #fff; color: #0f172a; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h2>📷 SCANNER PANITIA</h2>
+        <small>Arahkan kamera ke QR Code Tiket</small>
+    </div>
+
+    <!-- Kotak Kamera -->
+    <div id="reader"></div>
+
+    <!-- Kotak Notifikasi Hasil -->
+    <div id="result-box">
+        <div class="status-title" id="statusTitle">STATUS</div>
+        <div id="detailData"></div>
+        <button class="btn-scan" onclick="resumeScanner()">Scan Tiket Selanjutnya</button>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Firebase Config bantim-enterprise
+        const firebaseConfig = {
+            apiKey: "AIzaSyAgfX4MG0GmGnSn3sLFs9W1tc-ooho5JgE",
+            authDomain: "bantim-enterprise.firebaseapp.com",
+            projectId: "bantim-enterprise",
+            storageBucket: "bantim-enterprise.firebasestorage.app",
+            messagingSenderId: "921322033041",
+            appId: "1:921322033041:web:06bea0592ddc41025c1430",
+            measurementId: "G-1CHZZSN7Y5"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let html5QrcodeScanner;
+        let isProcessing = false; // Mencegah scan dobel dalam hitungan detik
+
+        // Inisialisasi Kamera Scanner
+        window.onload = () => {
+            html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+            html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+        };
+
+        async function onScanSuccess(decodedText, decodedResult) {
+            if(isProcessing) return;
+            isProcessing = true;
+
+            // Pause kamera saat memproses data
+            html5QrcodeScanner.pause();
+            const resultBox = document.getElementById('result-box');
+            const statusTitle = document.getElementById('statusTitle');
+            const detailData = document.getElementById('detailData');
+
+            resultBox.style.display = 'block';
+            statusTitle.innerText = "Mengecek Database...";
+            detailData.innerHTML = "";
+            resultBox.className = 'bg-used'; // warna default loading
+
+            try {
+                // Cari tiket di Firebase berdasarkan ID
+                const q = query(collection(db, "tiket"), where("id_tiket", "==", decodedText));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    // TIKET PALSU / TIDAK ADA
+                    resultBox.className = 'bg-invalid';
+                    statusTitle.innerText = "❌ TIKET TIDAK VALID";
+                    detailData.innerHTML = `<p>QR Code (${decodedText}) tidak ditemukan di sistem.</p>`;
+                } else {
+                    // TIKET DITEMUKAN
+                    querySnapshot.forEach(async (documentSnap) => {
+                        const data = documentSnap.data();
+                        
+                        if (data.status_scan === true) {
+                            // SUDAH DIGUNAKAN
+                            resultBox.className = 'bg-used';
+                            statusTitle.innerText = "⚠️ TIKET SUDAH DIGUNAKAN";
+                            detailData.innerHTML = `
+                                <p>Tiket ini sudah pernah di-scan sebelumnya!</p>
+                                <div class="data-text">Nama: <b>${data.nama}</b></div>
+                                <div class="data-text">Gantangan: <b>${data.no_gantangan}</b></div>
+                            `;
+                        } else {
+                            // TIKET VALID & BELUM DIPAKAI -> UPDATE STATUS
+                            await updateDoc(doc(db, "tiket", documentSnap.id), { status_scan: true });
+                            
+                            resultBox.className = 'bg-valid';
+                            statusTitle.innerText = "✅ TIKET SAH";
+                            detailData.innerHTML = `
+                                <div class="gantangan-big">Gantangan: ${data.no_gantangan}</div>
+                                <div class="data-text">Nama: <b>${data.nama}</b></div>
+                                <div class="data-text">Kelas: <b>${data.kelas}</b></div>
+                            `;
+                        }
+                    });
+                }
+            } catch (error) {
+                alert("Error koneksi: " + error.message);
+            }
+        }
+
+        function onScanFailure(error) {
+            // Abaikan pesan error gagal baca background
+        }
+
+        // Fungsi tombol lanjut scan
+        window.resumeScanner = function() {
+            document.getElementById('result-box').style.display = 'none';
+            isProcessing = false;
+            html5QrcodeScanner.resume();
+        }
+    </script>
+</body>
+</html>
