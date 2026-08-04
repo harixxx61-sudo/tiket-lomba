@@ -11,25 +11,40 @@
         .navbar a:hover { background: white; color: #1e3a8a; }
         .navbar a.active { background: #10b981; color: white; }
 
-        .container { max-width: 1100px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        h1, h2 { color: #1e3a8a; margin-bottom: 5px; }
+        .container { max-width: 1000px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        h1, h2 { color: #1e3a8a; margin-bottom: 10px; }
+
+        /* Layout 2 Kolom */
+        .row-form { display: flex; gap: 30px; flex-wrap: wrap; margin-bottom: 30px; }
+        .col-left { flex: 1; min-width: 300px; }
+        .col-right { flex: 1; min-width: 300px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
 
         .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 13px; color: #333; }
         .form-group select, .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
 
-        /* Grid Gantangan */
-        .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 10px; margin-top: 15px; max-height: 400px; overflow-y: auto; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
-        .gantangan-btn { padding: 12px 5px; text-align: center; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; transition: 0.2s; }
-        .tersedia { background: #10b981; color: white; }
-        .tersedia:hover { background: #059669; }
-        .terisi { background: #ef4444; color: white; cursor: not-allowed; opacity: 0.7; }
+        /* Grid Kotak Gantangan */
+        .grid-gantangan { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-top: 10px; }
+        .btn-gantangan { padding: 12px 0; text-align: center; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; color: white; font-size: 14px; }
+        .btn-gantangan.kosong { background: #10b981; } /* Hijau */
+        .btn-gantangan.kosong:hover { background: #059669; }
+        .btn-gantangan.terisi { background: #ef4444; cursor: not-allowed; opacity: 0.8; } /* Merah */
+        .btn-gantangan.pilih { background: #3b82f6 !important; } /* Biru saat dipilih */
 
-        .row { display: flex; gap: 20px; }
-        .col { flex: 1; }
+        /* Keterangan Warna */
+        .legend { display: flex; gap: 15px; align-items: center; margin-top: 15px; font-size: 13px; }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .legend-box { width: 12px; height: 12px; border-radius: 3px; }
 
-        .btn-submit { width: 100%; padding: 12px; background: #2563eb; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        .selected-box { background: #f1f5f9; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #cbd5e1; }
+        .selected-box span { font-weight: bold; color: #1e3a8a; }
+
+        .btn-submit { width: 100%; padding: 12px; background: #2563eb; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 15px; }
         .btn-submit:hover { background: #1d4ed8; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #e2e8f0; padding: 10px; text-align: left; font-size: 13px; }
+        th { background: #f8fafc; color: #1e3a8a; }
     </style>
 </head>
 <body>
@@ -43,15 +58,16 @@
     </div>
 
     <h1>Kasir Penjualan Tiket Lomba</h1>
-    <p>Pilih kelas lomba yang dibuat dari panel admin, lalu pilih nomor gantangan.</p>
+    <p style="color: #666; margin-bottom: 25px;">Pilih kelas lomba yang dibuat dari panel admin, lalu pilih nomor gantangan.</p>
 
-    <div class="row" style="margin-top: 20px;">
-        <!-- Kolom Kiri: Input Pembeli & Pilih Kelas -->
-        <div class="col">
+    <!-- Layout Form & Kotak Gantangan -->
+    <div class="row-form">
+        <!-- Kolom Kiri: Input Data -->
+        <div class="col-left">
             <div class="form-group">
                 <label>Pilih Kelas Lomba (Dari Admin)</label>
-                <select id="pilihanKelas" onchange="muatGantangan()">
-                    <option value="">-- Memuat Kelas dari Admin... --</option>
+                <select id="pilihAcara" onchange="renderGantangan()">
+                    <option value="">-- Pilih Kelas --</option>
                 </select>
             </div>
             <div class="form-group">
@@ -60,39 +76,58 @@
             </div>
             <div class="form-group">
                 <label>Nomor WhatsApp</label>
-                <input type="text" id="waPeserta" placeholder="08xxxxxxxxxx">
+                <input type="text" id="nomorWa" placeholder="08xxxxxxxxxx">
             </div>
             <div class="form-group">
                 <label>Nama Burung / Amunisi</label>
                 <input type="text" id="namaBurung" placeholder="Contoh: Petir Jr">
             </div>
             
-            <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-top: 20px;">
-                <p style="margin: 0; font-size: 14px; color: #555;">Nomor Gantangan Dipilih:</p>
-                <h2 id="infoGantanganPilih" style="color: #2563eb; margin: 5px 0 0 0;">Belum dipilih</h2>
+            <div class="selected-box">
+                Nomor Gantangan Dipilih:<br>
+                <span id="labelGantanganDipilih" style="font-size: 16px; color: #ef4444;">Belum dipilih</span>
             </div>
 
-            <button class="btn-submit" onclick="prosesPesanTiket()">Cetak & Simpan Tiket</button>
+            <button class="btn-submit" onclick="prosesJualTiket()">Cetak & Simpan Tiket</button>
         </div>
 
-        <!-- Kolom Kanan: Grid Gantangan -->
-        <div class="col">
-            <label style="font-weight: bold; font-size: 14px;">Pilih Nomor Gantangan:</label>
-            <div id="gridGantangan" class="grid-container">
-                <span style="color: #666; font-size: 13px; grid-column: span 4;">Silakan pilih kelas lomba terlebih dahulu di sebelah kiri.</span>
+        <!-- Kolom Kanan: Pilihan Nomor Gantangan -->
+        <div class="col-right">
+            <label style="font-weight: bold; font-size: 13px; color: #333;">Pilih Nomor Gantangan:</label>
+            <div id="gridGantanganContainer" class="grid-gantangan">
+                <span style="grid-span: span 6; color: #666; font-size: 13px;">Silakan pilih kelas lomba terlebih dahulu.</span>
             </div>
-            <div style="margin-top: 10px; font-size: 12px; display: flex; gap: 15px;">
-                <span><span style="display:inline-block;width:12px;height:12px;background:#10b981;border-radius:3px;"></span> Kosong</span>
-                <span><span style="display:inline-block;width:12px;height:12px;background:#ef4444;border-radius:3px;"></span> Terisi</span>
+
+            <div class="legend">
+                <div class="legend-item"><div class="legend-box" style="background: #10b981;"></div> Kosong</div>
+                <div class="legend-item"><div class="legend-box" style="background: #ef4444;"></div> Terisi</div>
             </div>
         </div>
     </div>
+
+    <!-- Riwayat Penjualan Tiket -->
+    <h2>Riwayat Tiket Terjual</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>No</th>
+                <th>Waktu</th>
+                <th>Kelas</th>
+                <th>No GNT</th>
+                <th>Peserta / Burung</th>
+                <th>Aksi</th>
+            </tr>
+        </thead>
+        <tbody id="tabelTiketTerjual">
+            <tr><td colspan="6" style="text-align:center;">Memuat data...</td></tr>
+        </tbody>
+    </table>
 </div>
 
-<!-- Firebase SDK -->
+<!-- Firebase SDK & Logika Kasir Interaktif -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, deleteDoc, doc, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAgfX4MG0GmGnSn3sLFs9W1tc-ooho5JgE",
@@ -106,117 +141,167 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    let selectedGantangan = null;
-    let currentStok = 0;
-    let dataKelasMap = {}; 
+    let dataAcaraCache = {};
+    let tiketTerjualList = [];
+    let nomorTerpilih = null;
+    let selectedAcaraId = null;
+    let selectedStokMaksimal = 0;
 
-    // 1. Ambil daftar kelas dari koleksi 'acara_lomba'
-    onSnapshot(collection(db, "acara_lomba"), (snapshot) => {
-        const select = document.getElementById('pilihanKelas');
-        select.innerHTML = '<option value="">-- Pilih Kelas Lomba --</option>';
-        dataKelasMap = {};
+    // 1. Muat Dropdown Acara
+    async function muatDropdownAcara() {
+        const select = document.getElementById('pilihAcara');
+        const querySnapshot = await getDocs(collection(db, "acara_lomba"));
+        
+        select.innerHTML = `<option value="">-- Pilih Kelas --</option>`;
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            dataAcaraCache[docSnap.id] = data;
+            select.innerHTML += `<option value="${docSnap.id}">${data.nama_acara} - ${data.kelas} (Rp ${data.harga_rp.toLocaleString()})</option>`;
+        });
+    }
+    muatDropdownAcara();
+
+    // 2. Pantau Data Tiket Terjual Realtime untuk Update Warna Tombol Gantangan
+    onSnapshot(collection(db, "tiket_terjual"), (snapshot) => {
+        tiketTerjualList = [];
+        const tabel = document.getElementById('tabelTiketTerjual');
+        tabel.innerHTML = "";
+        let no = 1;
 
         if (snapshot.empty) {
-            select.innerHTML = '<option value="">(Belum ada kelas dibuat di Admin)</option>';
-            return;
+            tabel.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 15px;">Belum ada tiket terjual.</td></tr>`;
         }
 
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            const id = docSnap.id;
-            dataKelasMap[id] = data; 
-            
-            select.innerHTML += `<option value="${id}">${data.nama_acara} - ${data.kelas} (${data.stok_gantangan}G) - Rp${data.harga_rp.toLocaleString()}</option>`;
+            tiketTerjualList.push({ idDoc: docSnap.id, ...data });
+
+            tabel.innerHTML += `
+                <tr>
+                    <td>${no++}</td>
+                    <td>${data.waktu_beli}</td>
+                    <td>${data.nama_acara} (${data.kelas})</td>
+                    <td><b>No. ${data.nomor_gantangan}</b></td>
+                    <td>${data.nama_peserta} / ${data.nama_burung || '-'}</td>
+                    <td>
+                        <button onclick="hapusTiket('${docSnap.id}')" style="background: #ef4444; color: white; border: none; padding: 5px 10px; border-radius: 4px; cursor: pointer;">Hapus</button>
+                    </td>
+                </tr>
+            `;
         });
+
+        // Render ulang kotak gantangan jika ada perubahan database
+        renderGantangan();
     });
 
-    // 2. Render grid gantangan dan sinkronkan dengan tiket yang sudah dibeli berdasarkan nama kelas
-    window.muatGantangan = function() {
-        const kelasId = document.getElementById('pilihanKelas').value;
-        const grid = document.getElementById('gridGantangan');
-        selectedGantangan = null;
-        document.getElementById('infoGantanganPilih').innerText = "Belum dipilih";
+    // 3. Render Kotak Nomor Gantangan Sesuai Stok Kelas yang Dipilih
+    window.renderGantangan = function() {
+        const select = document.getElementById('pilihAcara');
+        selectedAcaraId = select.value;
+        const container = document.getElementById('gridGantanganContainer');
+        
+        nomorTerpilih = null;
+        document.getElementById('labelGantanganDipilih').innerText = "Belum dipilih";
 
-        if (!kelasId) {
-            grid.innerHTML = '<span style="color: #666; font-size: 13px; grid-column: span 4;">Silakan pilih kelas lomba terlebih dahulu.</span>';
+        if (!selectedAcaraId) {
+            container.innerHTML = `<span style="color: #666; font-size: 13px;">Silakan pilih kelas lomba terlebih dahulu.</span>`;
+            selectedStokMaksimal = 0;
             return;
         }
 
-        const kelasData = dataKelasMap[kelasId];
-        currentStok = kelasData.stok_gantangan;
+        const acara = dataAcaraCache[selectedAcaraId];
+        selectedStokMaksimal = acara.stok_gantangan || 0;
 
-        // PERBAIKAN UTAMA: Menggunakan filter berdasarkan 'kelas' (sama persis dengan yang disimpan admin_acara.html)
-        const q = query(collection(db, "tiket"), where("kelas", "==", kelasData.kelas));
-        
-        onSnapshot(q, (snapshot) => {
-            const gantanganTerisi = [];
-            snapshot.forEach((doc) => {
-                gantanganTerisi.push(parseInt(doc.data().no_gantangan));
-            });
-
-            grid.innerHTML = "";
-            for (let i = 1; i <= currentStok; i++) {
-                const isTerisi = gantanganTerisi.includes(i);
-                const btn = document.createElement('button');
-                btn.className = `gantangan-btn ${isTerisi ? 'terisi' : 'tersedia'}`;
-                btn.innerText = i;
-                
-                if (isTerisi) {
-                    btn.disabled = true;
-                } else {
-                    btn.onclick = () => pilihGantangan(i);
-                }
-                grid.appendChild(btn);
+        // Ambil daftar nomor yang sudah dibeli untuk kelas ini
+        const nomorTerisiSet = new Set();
+        tiketTerjualList.forEach(t => {
+            if (t.id_acara === selectedAcaraId) {
+                nomorTerisiSet.add(parseInt(t.nomor_gantangan));
             }
         });
-    }
 
-    window.pilihGantangan = function(no) {
-        selectedGantangan = no;
-        document.getElementById('infoGantanganPilih').innerText = `Gantangan No. ${no}`;
-    }
+        container.innerHTML = "";
+        for (let i = 1; i <= selectedStokMaksimal; i++) {
+            const isTerisi = nomorTerisiSet.has(i);
+            const btn = document.createElement('button');
+            btn.className = `btn-gantangan ${isTerisi ? 'terisi' : 'kosong'}`;
+            btn.innerText = i;
+            
+            if (isTerisi) {
+                btn.disabled = true;
+            } else {
+                btn.onclick = () => pilihNomorGantangan(i, btn);
+            }
+            container.appendChild(btn);
+        }
+    };
 
-    // 3. Proses Simpan Tiket dengan struktur data yang cocok untuk Admin & Scanner
-    window.prosesPesanTiket = async function() {
-        const kelasId = document.getElementById('pilihanKelas').value;
-        const nama = document.getElementById('namaPeserta').value;
-        const wa = document.getElementById('waPeserta').value;
-        const burung = document.getElementById('namaBurung').value;
+    // 4. Pilih Nomor Gantangan
+    window.pilihNomorGantangan = function(nomor, element) {
+        // Hapus kelas 'pilih' dari semua tombol lain
+        document.querySelectorAll('.btn-gantangan.kosong').forEach(b => b.classList.remove('pilih'));
+        
+        element.classList.add('pilih');
+        nomorTerpilih = nomor;
+        document.getElementById('labelGantanganDipilih').innerText = `Nomor ${nomor}`;
+        document.getElementById('labelGantanganDipilih').style.color = "#2563eb";
+    };
 
-        if (!kelasId || !nama || selectedGantangan === null) {
-            alert("Harap pilih kelas lomba, isi nama peserta, dan pilih nomor gantangan!");
+    // 5. Proses Jual Tiket
+    window.prosesJualTiket = async function() {
+        const namaPeserta = document.getElementById('namaPeserta').value;
+        const nomorWa = document.getElementById('nomorWa').value;
+        const namaBurung = document.getElementById('namaBurung').value;
+
+        if (!selectedAcaraId || !nomorTerpilih || !namaPeserta) {
+            alert("Harap pilih kelas, pilih nomor gantangan, dan isi nama peserta!");
             return;
         }
 
-        const kelasData = dataKelasMap[kelasId];
-        const idTiketUnik = "TIK-" + Math.floor(100000 + Math.random() * 900000);
+        const acaraInfo = dataAcaraCache[selectedAcaraId];
 
         try {
-            await addDoc(collection(db, "tiket"), {
-                id_tiket: idTiketUnik,
-                kelas: kelasData.kelas,             // Dicocokkan agar terbaca di tabel admin & scanner
-                harga: kelasData.harga_rp,
-                no_gantangan: selectedGantangan,
-                nama: nama,
-                wa: wa,
-                burung: burung,
-                status_scan: false,
-                dibuat_pada: new Date().toISOString()
+            await addDoc(collection(db, "tiket_terjual"), {
+                id_acara: selectedAcaraId,
+                nama_acara: acaraInfo.nama_acara,
+                kelas: acaraInfo.kelas,
+                harga: acaraInfo.harga_rp,
+                nomor_gantangan: nomorTerpilih,
+                nama_peserta: namaPeserta,
+                nomor_wa: nomorWa,
+                nama_burung: namaBurung,
+                waktu_beli: new Date().toLocaleString()
             });
 
-            alert(`Tiket berhasil dicetak!\nID: ${idTiketUnik}\nGantangan: ${selectedGantangan}`);
+            alert(`Tiket Nomor ${nomorTerpilih} berhasil dicetak & disimpan!`);
             
-            // Reset form input
+            // Reset form input ringan
             document.getElementById('namaPeserta').value = "";
-            document.getElementById('waPeserta').value = "";
+            document.getElementById('nomorWa').value = "";
             document.getElementById('namaBurung').value = "";
-            selectedGantangan = null;
-            document.getElementById('infoGantanganPilih').innerText = "Belum dipilih";
-            muatGantangan();
+            nomorTerpilih = null;
+            document.getElementById('labelGantanganDipilih').innerText = "Belum dipilih";
+            document.getElementById('labelGantanganDipilih').style.color = "#ef4444";
+
+            renderGantangan();
         } catch (error) {
-            alert("Gagal memesan tiket: " + error.message);
+            alert("Gagal menjual tiket: " + error.message);
         }
-    }
+    };
+
+    // 6. Fungsi Hapus Tiket Terjual
+    window.hapusTiket = async function(id) {
+        const konfirmasi = confirm("Apakah Anda yakin ingin menghapus/membatalkan tiket ini?");
+        if (!konfirmasi) return;
+
+        try {
+            await deleteDoc(doc(db, "tiket_terjual", id));
+            alert("Tiket berhasil dihapus!");
+        } catch (error) {
+            alert("Gagal menghapus tiket: " + error.message);
+        }
+    };
 </script>
+
 </body>
 </html>
