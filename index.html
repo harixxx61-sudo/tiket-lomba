@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kasir Tiket Lomba Burung</title>
+    <!-- Library QR Code Generator (QRCode.js) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f6f9; margin: 20px; }
         .navbar { background: #1e3a8a; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: center; }
@@ -23,7 +25,7 @@
         .gantangan-btn { padding: 12px 5px; text-align: center; font-weight: bold; border-radius: 6px; border: none; cursor: pointer; font-size: 14px; transition: 0.2s; }
         .tersedia { background: #10b981; color: white; }
         .tersedia:hover { background: #059669; }
-        .terisi { background: #ef4444; color: white; cursor: pointer; } /* Bisa diklik untuk batalkan */
+        .terisi { background: #ef4444; color: white; cursor: pointer; } 
         .terisi:hover { background: #dc2626; }
 
         .row { display: flex; gap: 20px; }
@@ -31,6 +33,15 @@
 
         .btn-submit { width: 100%; padding: 12px; background: #2563eb; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
         .btn-submit:hover { background: #1d4ed8; }
+
+        /* Styling Lembar Cetak Struk / Tiket Thermal */
+        #printArea { display: none; }
+
+        @media print {
+            body * { visibility: hidden; }
+            #printArea, #printArea * { visibility: visible; }
+            #printArea { position: absolute; left: 0; top: 0; width: 58mm; padding: 5px; font-family: monospace; color: black; background: white; }
+        }
     </style>
 </head>
 <body>
@@ -87,6 +98,25 @@
     </div>
 </div>
 
+<!-- Area Cetak Tiket Struk / Thermal -->
+<div id="printArea" style="text-align: center; font-size: 12px; line-height: 1.2;">
+    <h3 style="margin: 0 0 5px 0; font-size: 14px;" id="cetakNamaAcara">-</h3>
+    <div style="border-bottom: 1px dashed black; margin-bottom: 5px;"></div>
+    <div style="font-size: 16px; font-weight: bold; margin: 5px 0;" id="cetakKelas">-</div>
+    <div style="font-size: 28px; font-weight: bold; border: 2px solid black; padding: 5px; margin: 5px 0;">
+        GNT: <span id="cetakNoGantangan">-</span>
+    </div>
+    <div style="text-align: left; margin-top: 8px;">
+        <div>ID Tiket : <span id="cetakIdTiket">-</span></div>
+        <div>Peserta  : <span id="cetakNamaPeserta">-</span></div>
+        <div>Burung   : <span id="cetakNamaBurung">-</span></div>
+        <div>Harga    : Rp <span id="cetakHarga">-</span></div>
+    </div>
+    <div style="border-bottom: 1px dashed black; margin: 8px 0;"></div>
+    <div id="qrcodeContainer" style="display: inline-block; margin: 5px 0;"></div>
+    <div style="font-size: 10px; margin-top: 5px;">Scan QR untuk Validasi Panitia</div>
+</div>
+
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, doc, setDoc, deleteDoc, getDocs, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -97,7 +127,7 @@
       projectId: "bantim-enterprise",
       storageBucket: "bantim-enterprise.firebasestorage.app",
       messagingSenderId: "921322033041",
-      appId: "1:921322033041:web:06bea0592ddc41025c1430",
+      appId: "1:921322033041:web:06bea8592ddc41025c1430",
       measurementId: "G-1CHZZSN7Y5"
     };
 
@@ -168,7 +198,6 @@
                 btn.innerText = i;
                 
                 if (isTerisi) {
-                    // Jika diklik, langsung tawarkan opsi pembatalan tiket
                     btn.onclick = () => konfirmasiBatalkanTiket(i);
                 } else {
                     btn.onclick = () => pilihGantangan(i);
@@ -183,7 +212,6 @@
         document.getElementById('infoGantanganPilih').innerText = `Gantangan No. ${no} (Dipilih untuk dibeli)`;
     }
 
-    // Fungsi otomatis untuk membatalkan tiket langsung saat tombol merah diklik
     window.konfirmasiBatalkanTiket = async function(noGantangan) {
         const kelasId = document.getElementById('pilihanKelas').value;
         const konfirmasi = confirm(`Gantangan No. ${noGantangan} sudah terisi. Apakah Anda ingin membatalkan / mengosongkan tiket ini?`);
@@ -249,8 +277,33 @@
                 dibuat_pada: new Date().toISOString()
             });
 
-            alert(`Tiket berhasil dicetak!\nID: ${idTiketUnik}\nGantangan: ${selectedGantangan}`);
-            
+            // Set data ke struk cetak
+            document.getElementById('cetakNamaAcara').innerText = kelasData.nama_acara;
+            document.getElementById('cetakKelas').innerText = kelasData.kelas;
+            document.getElementById('cetakNoGantangan').innerText = selectedGantangan;
+            document.getElementById('cetakIdTiket').innerText = idTiketUnik;
+            document.getElementById('cetakNamaPeserta').innerText = nama;
+            document.getElementById('cetakNamaBurung').innerText = burung || '-';
+            document.getElementById('cetakHarga').innerText = kelasData.harga_rp.toLocaleString();
+
+            // Generate QR Code di area cetak
+            const qrContainer = document.getElementById('qrcodeContainer');
+            qrContainer.innerHTML = "";
+            new QRCode(qrContainer, {
+                text: idTiketUnik,
+                width: 120,
+                height: 120,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            // Beri jeda sedikit agar QR code selesai dirender lalu panggil dialog cetak browser
+            setTimeout(() => {
+                window.print();
+            }, 300);
+
+            // Reset form kasir
             document.getElementById('namaPeserta').value = "";
             document.getElementById('waPeserta').value = "";
             document.getElementById('namaBurung').value = "";
