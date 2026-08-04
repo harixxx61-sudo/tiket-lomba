@@ -30,6 +30,10 @@
 
         .btn-submit { width: 100%; padding: 12px; background: #2563eb; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
         .btn-submit:hover { background: #1d4ed8; }
+
+        /* Style Tambahan untuk Tombol Hapus/Batal */
+        .btn-cancel { width: 100%; padding: 10px; background: #ef4444; color: white; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; margin-top: 8px; transition: 0.2s; }
+        .btn-cancel:hover { background: #dc2626; }
     </style>
 </head>
 <body>
@@ -70,6 +74,9 @@
             <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-top: 20px;">
                 <p style="margin: 0; font-size: 14px; color: #555;">Nomor Gantangan Dipilih:</p>
                 <h2 id="infoGantanganPilih" style="color: #2563eb; margin: 5px 0 0 0;">Belum dipilih</h2>
+                
+                <!-- TOMBOL BATALKAN/HAPUS TIKET -->
+                <button class="btn-cancel" onclick="batalkanTiketTerpilih()">Batalkan / Kosongkan Gantangan Ini</button>
             </div>
 
             <button class="btn-submit" onclick="prosesPesanTiket()">Cetak & Simpan Tiket</button>
@@ -92,7 +99,7 @@
 <!-- Firebase SDK -->
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, deleteDoc, doc, getDocs, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyAgfX4MG0GmGnSn3sLFs9W1tc-ooho5JgE",
@@ -109,10 +116,12 @@
     let selectedGantangan = null;
     let currentStok = 0;
     let dataKelasMap = {}; 
+    let unsubscribeGantangan = null;
 
     // 1. Ambil daftar kelas dari koleksi 'acara_lomba'
     onSnapshot(collection(db, "acara_lomba"), (snapshot) => {
         const select = document.getElementById('pilihanKelas');
+        const nilaiSebelumnya = select.value;
         select.innerHTML = '<option value="">-- Pilih Kelas Lomba --</option>';
         dataKelasMap = {};
 
@@ -128,14 +137,23 @@
             
             select.innerHTML += `<option value="${id}">${data.nama_acara} - ${data.kelas} (${data.stok_gantangan}G) - Rp${data.harga_rp.toLocaleString()}</option>`;
         });
+
+        if (nilaiSebelumnya && dataKelasMap[nilaiSebelumnya]) {
+            select.value = nilaiSebelumnya;
+        }
     });
 
-    // 2. Render grid gantangan dan sinkronkan dengan tiket yang sudah dibeli berdasarkan nama kelas
+    // 2. Render grid gantangan dan sinkronkan dengan tiket yang sudah dibeli
     window.muatGantangan = function() {
         const kelasId = document.getElementById('pilihanKelas').value;
         const grid = document.getElementById('gridGantangan');
         selectedGantangan = null;
         document.getElementById('infoGantanganPilih').innerText = "Belum dipilih";
+
+        if (unsubscribeGantangan) {
+            unsubscribeGantangan();
+            unsubscribeGantangan = null;
+        }
 
         if (!kelasId) {
             grid.innerHTML = '<span style="color: #666; font-size: 13px; grid-column: span 4;">Silakan pilih kelas lomba terlebih dahulu.</span>';
@@ -145,10 +163,9 @@
         const kelasData = dataKelasMap[kelasId];
         currentStok = kelasData.stok_gantangan;
 
-        // PERBAIKAN UTAMA: Menggunakan filter berdasarkan 'kelas' (sama persis dengan yang disimpan admin_acara.html)
-        const q = query(collection(db, "tiket"), where("kelas", "==", kelasData.kelas));
+        const q = query(collection(db, "tiket"), where("id_acara", "==", kelasId));
         
-        onSnapshot(q, (snapshot) => {
+        unsubscribeGantangan = onSnapshot(q, (snapshot) => {
             const gantanganTerisi = [];
             snapshot.forEach((doc) => {
                 gantanganTerisi.push(parseInt(doc.data().no_gantangan));
@@ -158,6 +175,7 @@
             for (let i = 1; i <= currentStok; i++) {
                 const isTerisi = gantanganTerisi.includes(i);
                 const btn = document.createElement('button');
+                btn.type = "button";
                 btn.className = `gantangan-btn ${isTerisi ? 'terisi' : 'tersedia'}`;
                 btn.innerText = i;
                 
@@ -168,6 +186,8 @@
                 }
                 grid.appendChild(btn);
             }
+        }, (error) => {
+            console.error("Gagal memuat status gantangan:", error);
         });
     }
 
@@ -176,12 +196,12 @@
         document.getElementById('infoGantanganPilih').innerText = `Gantangan No. ${no}`;
     }
 
-    // 3. Proses Simpan Tiket dengan struktur data yang cocok untuk Admin & Scanner
+    // 3. Proses Simpan Tiket
     window.prosesPesanTiket = async function() {
         const kelasId = document.getElementById('pilihanKelas').value;
-        const nama = document.getElementById('namaPeserta').value;
-        const wa = document.getElementById('waPeserta').value;
-        const burung = document.getElementById('namaBurung').value;
+        const nama = document.getElementById('namaPeserta').value.trim();
+        const wa = document.getElementById('waPeserta').value.trim();
+        const burung = document.getElementById('namaBurung').value.trim();
 
         if (!kelasId || !nama || selectedGantangan === null) {
             alert("Harap pilih kelas lomba, isi nama peserta, dan pilih nomor gantangan!");
@@ -194,7 +214,9 @@
         try {
             await addDoc(collection(db, "tiket"), {
                 id_tiket: idTiketUnik,
-                kelas: kelasData.kelas,             // Dicocokkan agar terbaca di tabel admin & scanner
+                id_acara: kelasId,             
+                nama_acara: kelasData.nama_acara,
+                kelas: kelasData.kelas,           
                 harga: kelasData.harga_rp,
                 no_gantangan: selectedGantangan,
                 nama: nama,
@@ -206,7 +228,6 @@
 
             alert(`Tiket berhasil dicetak!\nID: ${idTiketUnik}\nGantangan: ${selectedGantangan}`);
             
-            // Reset form input
             document.getElementById('namaPeserta').value = "";
             document.getElementById('waPeserta').value = "";
             document.getElementById('namaBurung').value = "";
@@ -215,6 +236,58 @@
             muatGantangan();
         } catch (error) {
             alert("Gagal memesan tiket: " + error.message);
+        }
+    }
+
+    // 4. Fitur Batalkan / Hapus Tiket berdasarkan Nomor Gantangan & Kelas Aktif
+    window.batalkanTiketTerpilih = async function() {
+        const kelasId = document.getElementById('pilihanKelas').value;
+
+        if (!kelasId) {
+            alert("Pilih kelas lomba terlebih dahulu!");
+            return;
+        }
+
+        if (selectedGantangan === null) {
+            alert("Belum ada nomor gantangan yang dipilih atau diklik untuk dibatalkan!");
+            return;
+        }
+
+        const konfirmasi = confirm(`Apakah Anda yakin ingin membatalkan / mengosongkan Gantangan No. ${selectedGantangan}?`);
+        if (!konfirmasi) return;
+
+        try {
+            // Cari data tiket di database berdasarkan id_acara dan no_gantangan
+            const q = query(
+                collection(db, "tiket"), 
+                where("id_acara", "==", kelasId),
+                where("no_gantangan", "==", selectedGantangan)
+            );
+
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.empty) {
+                alert("Data tiket untuk gantangan ini tidak ditemukan di database.");
+                return;
+            }
+
+            // Hapus dokumen tiket yang ditemukan
+            let deletePromises = [];
+            querySnapshot.forEach((documentSnap) => {
+                deletePromises.push(deleteDoc(doc(db, "tiket", documentSnap.id)));
+            });
+
+            await Promise.all(deletePromises);
+
+            alert(`Gantangan No. ${selectedGantangan} berhasil dikosongkan kembali.`);
+            
+            // Reset pilihan gantangan lokal
+            selectedGantangan = null;
+            document.getElementById('infoGantanganPilih').innerText = "Belum dipilih";
+            muatGantangan();
+
+        } catch (error) {
+            alert("Gagal membatalkan tiket: " + error.message);
         }
     }
 </script>
